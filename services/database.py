@@ -17,7 +17,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS server_config (
                     guild_id    INTEGER PRIMARY KEY,
                     team_number INTEGER,
-                    season      INTEGER DEFAULT 2025,
+                    season      INTEGER DEFAULT 2024,
                     timezone    TEXT    DEFAULT 'America/Los_Angeles',
                     tasks_channel    INTEGER,
                     scouting_channel INTEGER,
@@ -41,6 +41,7 @@ class Database:
                     owner_id   INTEGER,
                     subteam    TEXT,
                     due_date   TEXT,
+                    priority   TEXT    DEFAULT 'medium',
                     status     TEXT    DEFAULT 'open',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -108,6 +109,28 @@ class Database:
                     word     TEXT    NOT NULL,
                     UNIQUE(guild_id, word)
                 );
+
+                -- Attendance records
+                CREATE TABLE IF NOT EXISTS attendance (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id   INTEGER NOT NULL,
+                    meeting_id INTEGER,
+                    user_id    INTEGER NOT NULL,
+                    checked_in TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(guild_id, meeting_id, user_id)
+                );
+
+                -- Competition countdown tracking
+                CREATE TABLE IF NOT EXISTS countdowns (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id   INTEGER NOT NULL,
+                    event_code TEXT    NOT NULL,
+                    event_name TEXT,
+                    event_date TEXT,
+                    channel_id INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(guild_id, event_code)
+                );
             """)
             await db.commit()
         log.info("Database initialized at %s", self.path)
@@ -138,11 +161,11 @@ class Database:
 
     # ── Tasks ─────────────────────────────────────────────────────────────────
 
-    async def add_task(self, guild_id, title, owner_id=None, subteam=None, due_date=None) -> int:
+    async def add_task(self, guild_id, title, owner_id=None, subteam=None, due_date=None, priority="medium") -> int:
         async with aiosqlite.connect(self.path) as db:
             cur = await db.execute(
-                "INSERT INTO tasks (guild_id, title, owner_id, subteam, due_date) VALUES (?,?,?,?,?)",
-                (guild_id, title, owner_id, subteam, due_date),
+                "INSERT INTO tasks (guild_id, title, owner_id, subteam, due_date, priority) VALUES (?,?,?,?,?,?)",
+                (guild_id, title, owner_id, subteam, due_date, priority),
             )
             await db.commit()
             return cur.lastrowid
@@ -168,6 +191,16 @@ class Database:
             cur = await db.execute(
                 "UPDATE tasks SET status='done' WHERE id=? AND guild_id=? AND status='open'",
                 (task_id, guild_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def assign_task(self, guild_id: int, task_id: int, owner_id: int) -> bool:
+        """Reassign a task to a new owner. Returns True if successful."""
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "UPDATE tasks SET owner_id=? WHERE id=? AND guild_id=? AND status='open'",
+                (owner_id, task_id, guild_id),
             )
             await db.commit()
             return cur.rowcount > 0
@@ -337,3 +370,87 @@ class Database:
                 (guild_id, word.lower()),
             )
             await db.commit()
+
+    # ── Attendance ────────────────────────────────────────────────────────────
+
+    async def check_in(self, guild_id: int, user_id: int, meeting_id: int = None) -> bool:
+        """Record attendance. Returns True if new check-in, False if already checked in."""
+        async with aiosqlite.connect(self.path) as db:
+            try:
+                await db.execute(
+                    "INSERT INTO attendance (guild_id, meeting_id, user_id) VALUES (?,?,?)",
+                    (guild_id, meeting_id, user_id),
+                )
+                await db.commit()
+                return True
+            except Exception:
+                return False
+
+    async def get_attendance_for_meeting(self, guild_id: int, meeting_id: int) -> list:
+        """Get all attendees for a specific meeting."""
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT user_id, checked_in FROM attendance WHERE guild_id=? AND meeting_id=?",
+                (guild_id, meeting_id),
+            ) as cur:
+                return [{"user_id": row[0], "checked_in": row[1]} for row in await cur.fetchall()]
+
+    async def get_attendance_stats(self, guild_id: int, limit: int = 30) -> list:
+        """Get attendance count per user for recent meetings."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """SELECT user_id, COUNT(*) as count 
+                   FROM attendance 
+                   WHERE guild_id=? 
+                   GROUP BY user_id 
+                   ORDER BY count DESC 
+                   LIMIT ?""",
+                (guild_id, limit),
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def get_total_meetings_count(self, guild_id: int) -> int:
+        """Get total number of completed meetings."""
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT COUNT(*) FROM meetings WHERE guild_id=? AND ended_at IS NOT NULL",
+                (guild_id,),
+            ) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else 0
+
+    # ── Countdowns ────────────────────────────────────────────────────────────
+
+    async def set_countdown(self, guild_id: int, event_code: str, event_name: str, 
+                           event_date: str, channel_id: int = None):
+        """Set or update a competition countdown."""
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                """INSERT INTO countdowns (guild_id, event_code, event_name, event_date, channel_id)
+                   VALUES (?,?,?,?,?)
+                   ON CONFLICT(guild_id, event_code) DO UPDATE SET 
+                   event_name=excluded.event_name, event_date=excluded.event_date, channel_id=excluded.channel_id""",
+                (guild_id, event_code.upper(), event_name, event_date, channel_id),
+            )
+            await db.commit()
+
+    async def get_countdowns(self, guild_id: int) -> list:
+        """Get all countdowns for a guild."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM countdowns WHERE guild_id=? ORDER BY event_date",
+                (guild_id,),
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def remove_countdown(self, guild_id: int, event_code: str) -> bool:
+        """Remove a countdown. Returns True if removed."""
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "DELETE FROM countdowns WHERE guild_id=? AND event_code=?",
+                (guild_id, event_code.upper()),
+            )
+            await db.commit()
+            return cur.rowcount > 0

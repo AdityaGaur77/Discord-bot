@@ -30,7 +30,6 @@ class ScoutingCog(commands.Cog):
         event: str = None,
         notes: str = "",
     ):
-        cfg = await self.bot.db.get_config(interaction.guild_id)
         event_code = event.upper() if event else None
 
         scout_id = await self.bot.db.add_scout(
@@ -56,6 +55,7 @@ class ScoutingCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
         # Also post to scouting channel if configured
+        cfg = await self.bot.db.get_config(interaction.guild_id)
         if cfg and cfg.get("scouting_channel") and cfg["scouting_channel"] != interaction.channel_id:
             ch = interaction.guild.get_channel(cfg["scouting_channel"])
             if ch:

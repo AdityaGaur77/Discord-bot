@@ -35,6 +35,8 @@ class FTCBot(commands.Bot):
             "cogs.scouting",
             "cogs.outreach",
             "cogs.moderation",
+            "cogs.attendance",
+            "cogs.countdown",
             "cogs.help_cog",
         ]
         for cog in cogs:

@@ -4,6 +4,8 @@ from discord.ext import commands
 from services.permissions import is_leadership
 
 STATUS_COLORS = {"open": 0x1565C0, "done": 0x43A047}
+PRIORITY_ICONS = {"high": "!!!", "medium": "!!", "low": "!"}
+PRIORITY_COLORS = {"high": 0xE53935, "medium": 0xFB8C00, "low": 0x43A047}
 
 
 class TasksCog(commands.Cog):
@@ -18,7 +20,13 @@ class TasksCog(commands.Cog):
         owner="Who owns this task",
         subteam="Which subteam (programming, build, cad, etc.)",
         due="Due date, e.g. 'Friday' or '2026-01-15'",
+        priority="Task priority: high, medium, or low",
     )
+    @app_commands.choices(priority=[
+        app_commands.Choice(name="High", value="high"),
+        app_commands.Choice(name="Medium", value="medium"),
+        app_commands.Choice(name="Low", value="low"),
+    ])
     async def task_add(
         self,
         interaction: discord.Interaction,
@@ -26,17 +34,20 @@ class TasksCog(commands.Cog):
         owner: discord.Member = None,
         subteam: str = None,
         due: str = None,
+        priority: str = "medium",
     ):
         owner_id = owner.id if owner else interaction.user.id
         task_id = await self.bot.db.add_task(
-            interaction.guild_id, title, owner_id, subteam, due
+            interaction.guild_id, title, owner_id, subteam, due, priority
         )
 
+        color = PRIORITY_COLORS.get(priority, 0x1565C0)
         embed = discord.Embed(
-            title="✅ Task Added",
+            title="Task Added",
             description=f"**#{task_id}** {title}",
-            color=0x1565C0,
+            color=color,
         )
+        embed.add_field(name="Priority", value=priority.capitalize())
         if owner:
             embed.add_field(name="Owner",   value=owner.mention)
         if subteam:
@@ -77,18 +88,20 @@ class TasksCog(commands.Cog):
         for t in tasks:
             owner_str   = f"<@{t['owner_id']}>" if t.get("owner_id") else "unassigned"
             subteam_str = f" `[{t['subteam']}]`" if t.get("subteam") else ""
-            due_str     = f" • due {t['due_date']}" if t.get("due_date") else ""
-            status_icon = "✅" if t["status"] == "done" else "🔲"
+            due_str     = f" | due {t['due_date']}" if t.get("due_date") else ""
+            priority    = t.get("priority", "medium")
+            priority_icon = PRIORITY_ICONS.get(priority, "!!")
+            status_icon = "[x]" if t["status"] == "done" else "[ ]"
             lines.append(
-                f"{status_icon} **#{t['id']}** {t['title']}{subteam_str} — {owner_str}{due_str}"
+                f"{status_icon} `{priority_icon}` **#{t['id']}** {t['title']}{subteam_str} — {owner_str}{due_str}"
             )
 
         embed = discord.Embed(
-            title=f"📋 {status.capitalize()} Tasks" + (f" — {subteam}" if subteam else ""),
+            title=f"{status.capitalize()} Tasks" + (f" - {subteam}" if subteam else ""),
             description="\n".join(lines),
             color=STATUS_COLORS.get(status, 0x1565C0),
         )
-        embed.set_footer(text=f"{len(tasks)} task(s)")
+        embed.set_footer(text=f"{len(tasks)} task(s) | Priority: !!! high, !! medium, ! low")
         await interaction.response.send_message(embed=embed)
 
     @task_group.command(name="done", description="Mark a task as completed")
@@ -110,20 +123,15 @@ class TasksCog(commands.Cog):
     async def task_assign(
         self, interaction: discord.Interaction, task_id: int, member: discord.Member
     ):
-        async with __import__("aiosqlite").connect(self.bot.db.path) as db:
-            cur = await db.execute(
-                "UPDATE tasks SET owner_id=? WHERE id=? AND guild_id=? AND status='open'",
-                (member.id, task_id, interaction.guild_id),
+        success = await self.bot.db.assign_task(interaction.guild_id, task_id, member.id)
+        if not success:
+            await interaction.response.send_message(
+                f"Task **#{task_id}** not found or already completed.", ephemeral=True
             )
-            await db.commit()
-            if cur.rowcount == 0:
-                await interaction.response.send_message(
-                    f"❌ Task **#{task_id}** not found.", ephemeral=True
-                )
-                return
+            return
 
         await interaction.response.send_message(
-            f"✅ Task **#{task_id}** reassigned to {member.mention}"
+            f"Task **#{task_id}** reassigned to {member.mention}"
         )
 
 

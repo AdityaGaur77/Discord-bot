@@ -14,6 +14,21 @@ class FTCApiCog(commands.Cog):
 
     ftc_group = app_commands.Group(name="ftc", description="Live FTC event and team data")
 
+    # /ftc myteam ---------------------------------------------------------
+
+    @ftc_group.command(name="myteam", description="Quick lookup of your configured team")
+    async def ftc_myteam(self, interaction: discord.Interaction):
+        """Lookup the server's configured team number."""
+        cfg = await self.bot.db.get_config(interaction.guild_id)
+        if not cfg or not cfg.get("team_number"):
+            await interaction.response.send_message(
+                "No team configured. Use `/setup team <number>` first.",
+                ephemeral=True,
+            )
+            return
+        # Reuse the team lookup logic
+        await self.ftc_team.callback(self, interaction, cfg["team_number"])
+
     # /ftc team -----------------------------------------------------------
 
     @ftc_group.command(name="team", description="Look up any FTC team by number")

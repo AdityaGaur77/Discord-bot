@@ -13,7 +13,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 BASE = "https://api.ftcscout.org/rest/v1"
-CURRENT_SEASON = 2024  # INTO THE DEEP — update each kickoff (2025 = next season)
+CURRENT_SEASON = 2024  # INTO THE DEEP (2024-2025 season)
 
 
 async def _get(path: str, params: dict = None) -> Optional[dict | list]:

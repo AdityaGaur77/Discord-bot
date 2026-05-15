@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from services.permissions import is_admin, is_leadership
+import services.ftc_client as ftc
 
 # Recommended FTC roles to auto-create
 DEFAULT_FTC_ROLES = [
@@ -38,7 +39,7 @@ class AdminCog(commands.Cog):
     )
     @is_admin()
     async def setup_team(self, interaction: discord.Interaction,
-                         team_number: int, season: int = 2024):
+                         team_number: int, season: int = ftc.CURRENT_SEASON):
         await self.bot.db.set_config(
             interaction.guild_id,
             team_number=team_number,
@@ -56,31 +57,42 @@ class AdminCog(commands.Cog):
     @is_admin()
     async def setup_roles(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        created, skipped = [], []
+        created, skipped, failed = [], [], []
 
         for role_name, color in DEFAULT_FTC_ROLES:
             existing = discord.utils.get(interaction.guild.roles, name=role_name)
             if existing:
                 skipped.append(role_name)
                 continue
-            await interaction.guild.create_role(
-                name=role_name,
-                color=discord.Color(color),
-                reason="FTC Bot: /setup roles",
-            )
-            created.append(role_name)
+            try:
+                await interaction.guild.create_role(
+                    name=role_name,
+                    color=discord.Color(color),
+                    reason="FTC Bot: /setup roles",
+                )
+                created.append(role_name)
+            except discord.Forbidden:
+                failed.append(role_name)
+            except discord.HTTPException:
+                failed.append(role_name)
 
-        embed = discord.Embed(title="🎭 FTC Roles Setup", color=0x1565C0)
+        embed = discord.Embed(title="FTC Roles Setup", color=0x1565C0)
         if created:
             embed.add_field(
-                name=f"✅ Created ({len(created)})",
-                value="\n".join(f"• {r}" for r in created) or "None",
+                name=f"Created ({len(created)})",
+                value="\n".join(f"- {r}" for r in created) or "None",
                 inline=False,
             )
         if skipped:
             embed.add_field(
-                name=f"⏭️ Already existed ({len(skipped)})",
-                value="\n".join(f"• {r}" for r in skipped) or "None",
+                name=f"Already existed ({len(skipped)})",
+                value="\n".join(f"- {r}" for r in skipped) or "None",
+                inline=False,
+            )
+        if failed:
+            embed.add_field(
+                name=f"Failed ({len(failed)})",
+                value="\n".join(f"- {r}" for r in failed) + "\n*(Check bot permissions)*",
                 inline=False,
             )
         embed.set_footer(text="Members can now use /role join to pick their role.")
