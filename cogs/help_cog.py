@@ -12,7 +12,7 @@ FTC_EVENTS_URL = "https://ftc-events.firstinspires.org"
 FEATURE_CATEGORIES = {
     "competition": {
         "name": "Competition Tools",
-        "description": "Live FTC data, scouting, and countdown tracking",
+        "description": "Live FTC data, match watching, and countdown tracking",
         "color": 0xFB8C00,
         "commands": [
             ("`/ftc myteam`", "Quick lookup of your configured team"),
@@ -23,25 +23,30 @@ FEATURE_CATEGORIES = {
             ("`/ftc schedule <code>`", "Upcoming matches"),
             ("`/ftc awards <code>`", "Event awards"),
             ("`/ftc teams <code>`", "Teams attending event"),
+            ("`/watch team <num> <event>`", "See all matches for a team"),
+            ("`/watch myteam <event>`", "See your team's matches"),
+            ("`/watch next <event>`", "Your team's next match"),
             ("`/countdown set <code>`", "Track days until competition"),
             ("`/countdown view`", "View all countdowns"),
-            ("`/countdown next`", "Show next upcoming competition"),
         ],
     },
     "scouting": {
-        "name": "Match Scouting",
+        "name": "Match & Pit Scouting",
         "description": "Track and analyze team performance",
         "color": 0x43A047,
         "commands": [
-            ("`/scout add <team>`", "Submit a scouting report"),
+            ("`/scout add <team>`", "Submit a match scouting report"),
             ("`/scout report <team>`", "View aggregated team data"),
             ("`/scout compare <a> <b>`", "Compare two teams"),
             ("`/scout export`", "Download all data as CSV"),
+            ("`/pit add <team> <event>`", "Submit pit scouting report"),
+            ("`/pit view <team>`", "View pit scouting data"),
+            ("`/pit list <event>`", "List all pit scouted teams"),
         ],
     },
     "team-management": {
         "name": "Team Management",
-        "description": "Tasks, meetings, attendance, and roles",
+        "description": "Tasks, meetings, and attendance tracking",
         "color": 0x1565C0,
         "commands": [
             ("`/task add <title>`", "Create a task (with priority)"),
@@ -54,8 +59,6 @@ FEATURE_CATEGORIES = {
             ("`/attendance checkin`", "Check in to meeting"),
             ("`/attendance list`", "See who's checked in"),
             ("`/attendance report`", "View attendance stats"),
-            ("`/role join <role>`", "Self-assign a role"),
-            ("`/role list`", "View available roles"),
         ],
     },
     "documentation": {
@@ -85,7 +88,6 @@ FEATURE_CATEGORIES = {
         "color": 0x757575,
         "commands": [
             ("`/setup team <number>`", "Set your team number"),
-            ("`/setup roles`", "Create FTC team roles"),
             ("`/setup channels`", "Configure notification channels"),
             ("`/config view`", "View current configuration"),
             ("`/config timezone`", "Set server timezone"),
@@ -134,7 +136,7 @@ class HelpCog(commands.Cog):
             name="Quick Start",
             value=(
                 "1. `/setup team <number>` - Configure your team\n"
-                "2. `/setup roles` - Create team roles\n"
+                "2. `/setup channels` - Set notification channels\n"
                 "3. `/ftc myteam` - Test FTC data lookup"
             ),
             inline=False,
@@ -147,7 +149,7 @@ class HelpCog(commands.Cog):
     @app_commands.describe(category="Feature category to show commands for")
     @app_commands.choices(category=[
         app_commands.Choice(name="Competition Tools", value="competition"),
-        app_commands.Choice(name="Match Scouting", value="scouting"),
+        app_commands.Choice(name="Match & Pit Scouting", value="scouting"),
         app_commands.Choice(name="Team Management", value="team-management"),
         app_commands.Choice(name="Engineering Notebook", value="documentation"),
         app_commands.Choice(name="Outreach Tracking", value="outreach"),
@@ -189,7 +191,7 @@ class HelpCog(commands.Cog):
         elif category == "scouting":
             embed.add_field(
                 name="Tip",
-                value="Scout multiple matches per team for better averages. Export to CSV for spreadsheet analysis.",
+                value="Match scout multiple times per team for better averages. Pit scout for robot details. Export to CSV for spreadsheet analysis.",
                 inline=False,
             )
         elif category == "team-management":

@@ -61,10 +61,9 @@ class FTCApiCog(commands.Cog):
         # Season stats (may 404 if team hasn't competed yet)
         stats = await ftc.get_team_quick_stats(team_number, season)
         if stats:
-            record = f"{stats.get('wins', 0)}W / {stats.get('losses', 0)}L / {stats.get('ties', 0)}T"
-            embed.add_field(name=f"Season {season} Record", value=record, inline=False)
-
-            for key, label in [("tot", "Avg Total"), ("opr", "OPR"), ("auto", "Avg Auto"),
+            # Note: quick-stats endpoint returns global season stats (tot, auto, dc, eg, opr)
+            # but NOT wins/losses - those are per-event only
+            for key, label in [("tot", "Avg Total"), ("auto", "Avg Auto"),
                                 ("dc", "Avg TeleOp"), ("eg", "Avg Endgame")]:
                 s = stats.get(key)
                 if s and s.get("value") is not None:
@@ -264,3 +263,177 @@ class FTCApiCog(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(FTCApiCog(bot))
+
+
+# Additional watch command for tracking team matches at events
+class MatchWatchCog(commands.Cog):
+    """Commands for watching specific teams at events."""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    watch_group = app_commands.Group(name="watch", description="Track team matches at events")
+
+    @watch_group.command(name="team", description="See all matches for a team at an event")
+    @app_commands.describe(
+        team_number="Team number to watch",
+        event_code="Event code (e.g. USPALVC)",
+    )
+    async def watch_team(
+        self, interaction: discord.Interaction, team_number: int, event_code: str
+    ):
+        await interaction.response.defer(thinking=True)
+        cfg = await self.bot.db.get_config(interaction.guild_id)
+        season = cfg.get("season", ftc.CURRENT_SEASON) if cfg else ftc.CURRENT_SEASON
+
+        # Get all matches at this event
+        matches = await ftc.get_event_matches(event_code, season)
+        if matches is None:
+            await interaction.followup.send(f"Event **{event_code.upper()}** not found.")
+            return
+
+        # Filter to matches involving this team
+        team_matches = []
+        for m in matches:
+            red_teams = [t.get("team", {}).get("number") for t in m.get("redTeams", [])]
+            blue_teams = [t.get("team", {}).get("number") for t in m.get("blueTeams", [])]
+            if team_number in red_teams or team_number in blue_teams:
+                alliance = "red" if team_number in red_teams else "blue"
+                team_matches.append({**m, "_alliance": alliance})
+
+        if not team_matches:
+            await interaction.followup.send(
+                f"Team **{team_number}** has no matches at **{event_code.upper()}**."
+            )
+            return
+
+        embed = discord.Embed(
+            title=f"Matches for Team {team_number} at {event_code.upper()}",
+            color=0x1565C0,
+        )
+
+        played = [m for m in team_matches if m.get("hasBeenPlayed")]
+        upcoming = [m for m in team_matches if not m.get("hasBeenPlayed")]
+
+        if played:
+            lines = []
+            wins, losses = 0, 0
+            for m in played[-8:]:  # Last 8 played
+                desc = m.get("description") or f"Match {m.get('matchNum', '?')}"
+                red_pts = (m.get("redScore") or {}).get("totalPoints", 0)
+                blue_pts = (m.get("blueScore") or {}).get("totalPoints", 0)
+                alliance = m["_alliance"]
+                
+                if alliance == "red":
+                    won = red_pts > blue_pts
+                    score_str = f"**{red_pts}** - {blue_pts}"
+                else:
+                    won = blue_pts > red_pts
+                    score_str = f"{red_pts} - **{blue_pts}**"
+                
+                if won:
+                    wins += 1
+                    result = "W"
+                elif red_pts == blue_pts:
+                    result = "T"
+                else:
+                    losses += 1
+                    result = "L"
+                
+                lines.append(f"[{result}] **{desc}**: {score_str}")
+            
+            embed.add_field(
+                name=f"Played ({wins}W-{losses}L)",
+                value="\n".join(lines) if lines else "None",
+                inline=False,
+            )
+
+        if upcoming:
+            lines = []
+            for m in upcoming[:5]:  # Next 5 matches
+                desc = m.get("description") or f"Match {m.get('matchNum', '?')}"
+                red_teams = "/".join(str(t.get("team", {}).get("number", "?")) for t in m.get("redTeams", []))
+                blue_teams = "/".join(str(t.get("team", {}).get("number", "?")) for t in m.get("blueTeams", []))
+                alliance = m["_alliance"]
+                
+                if alliance == "red":
+                    lines.append(f"**{desc}**: [**{red_teams}**] vs [{blue_teams}]")
+                else:
+                    lines.append(f"**{desc}**: [{red_teams}] vs [**{blue_teams}**]")
+            
+            embed.add_field(
+                name=f"Upcoming ({len(upcoming)} matches)",
+                value="\n".join(lines) if lines else "None",
+                inline=False,
+            )
+
+        embed.set_footer(text=f"Team {team_number} is highlighted in bold | ftcscout.org")
+        await interaction.followup.send(embed=embed)
+
+    @watch_group.command(name="myteam", description="See all matches for your configured team at an event")
+    @app_commands.describe(event_code="Event code (e.g. USPALVC)")
+    async def watch_myteam(self, interaction: discord.Interaction, event_code: str):
+        cfg = await self.bot.db.get_config(interaction.guild_id)
+        if not cfg or not cfg.get("team_number"):
+            await interaction.response.send_message(
+                "No team configured. Use `/setup team <number>` first.",
+                ephemeral=True,
+            )
+            return
+        await self.watch_team.callback(self, interaction, cfg["team_number"], event_code)
+
+    @watch_group.command(name="next", description="See the next match for your team at an event")
+    @app_commands.describe(event_code="Event code (e.g. USPALVC)")
+    async def watch_next(self, interaction: discord.Interaction, event_code: str):
+        cfg = await self.bot.db.get_config(interaction.guild_id)
+        if not cfg or not cfg.get("team_number"):
+            await interaction.response.send_message(
+                "No team configured. Use `/setup team <number>` first.",
+                ephemeral=True,
+            )
+            return
+        
+        await interaction.response.defer(thinking=True)
+        team_number = cfg["team_number"]
+        season = cfg.get("season", ftc.CURRENT_SEASON)
+
+        matches = await ftc.get_event_matches(event_code, season)
+        if matches is None:
+            await interaction.followup.send(f"Event **{event_code.upper()}** not found.")
+            return
+
+        # Find next unplayed match for this team
+        for m in matches:
+            if m.get("hasBeenPlayed"):
+                continue
+            red_teams = [t.get("team", {}).get("number") for t in m.get("redTeams", [])]
+            blue_teams = [t.get("team", {}).get("number") for t in m.get("blueTeams", [])]
+            
+            if team_number in red_teams or team_number in blue_teams:
+                alliance = "red" if team_number in red_teams else "blue"
+                desc = m.get("description") or f"Match {m.get('matchNum', '?')}"
+                
+                red_str = " / ".join(str(t.get("team", {}).get("number", "?")) for t in m.get("redTeams", []))
+                blue_str = " / ".join(str(t.get("team", {}).get("number", "?")) for t in m.get("blueTeams", []))
+                
+                color = 0xE53935 if alliance == "red" else 0x1565C0
+                embed = discord.Embed(
+                    title=f"Next Match: {desc}",
+                    description=f"Team **{team_number}** is on **{alliance.upper()}** alliance",
+                    color=color,
+                )
+                embed.add_field(name="Red Alliance", value=red_str)
+                embed.add_field(name="Blue Alliance", value=blue_str)
+                embed.set_footer(text=f"{event_code.upper()} | ftcscout.org")
+                await interaction.followup.send(embed=embed)
+                return
+
+        await interaction.followup.send(
+            f"No upcoming matches found for team **{team_number}** at **{event_code.upper()}**. "
+            "Event may be complete or not started."
+        )
+
+
+async def setup(bot):
+    await bot.add_cog(FTCApiCog(bot))
+    await bot.add_cog(MatchWatchCog(bot))

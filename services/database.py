@@ -80,6 +80,24 @@ class Database:
                     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
+                -- Pit scouting data
+                CREATE TABLE IF NOT EXISTS pit_scouting (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id     INTEGER NOT NULL,
+                    team_number  INTEGER NOT NULL,
+                    event_code   TEXT,
+                    scout_id     INTEGER,
+                    drivetrain   TEXT,
+                    max_height   TEXT,
+                    auto_capable TEXT,
+                    cycle_time   TEXT,
+                    strengths    TEXT,
+                    weaknesses   TEXT,
+                    notes        TEXT    DEFAULT '',
+                    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(guild_id, team_number, event_code)
+                );
+
                 -- Outreach events
                 CREATE TABLE IF NOT EXISTS outreach (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -308,6 +326,66 @@ class Database:
             ) as cur:
                 return [dict(r) for r in await cur.fetchall()]
 
+    # ── Pit Scouting ──────────────────────────────────────────────────────────
+
+    async def add_pit_scout(self, guild_id: int, team_number: int, event_code: str,
+                           scout_id: int, drivetrain: str, max_height: str,
+                           auto_capable: str, cycle_time: str, strengths: str,
+                           weaknesses: str, notes: str) -> int:
+        """Add or update pit scouting data for a team. Returns row id."""
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                """INSERT INTO pit_scouting 
+                   (guild_id, team_number, event_code, scout_id, drivetrain, max_height,
+                    auto_capable, cycle_time, strengths, weaknesses, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(guild_id, team_number, event_code) DO UPDATE SET
+                   scout_id=excluded.scout_id, drivetrain=excluded.drivetrain,
+                   max_height=excluded.max_height, auto_capable=excluded.auto_capable,
+                   cycle_time=excluded.cycle_time, strengths=excluded.strengths,
+                   weaknesses=excluded.weaknesses, notes=excluded.notes""",
+                (guild_id, team_number, event_code.upper() if event_code else None,
+                 scout_id, drivetrain, max_height, auto_capable, cycle_time,
+                 strengths, weaknesses, notes),
+            )
+            await db.commit()
+            return cur.lastrowid
+
+    async def get_pit_scout(self, guild_id: int, team_number: int, event_code: str = None) -> dict:
+        """Get pit scouting data for a specific team."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if event_code:
+                async with db.execute(
+                    "SELECT * FROM pit_scouting WHERE guild_id=? AND team_number=? AND event_code=?",
+                    (guild_id, team_number, event_code.upper()),
+                ) as cur:
+                    row = await cur.fetchone()
+                    return dict(row) if row else None
+            else:
+                async with db.execute(
+                    "SELECT * FROM pit_scouting WHERE guild_id=? AND team_number=? ORDER BY created_at DESC LIMIT 1",
+                    (guild_id, team_number),
+                ) as cur:
+                    row = await cur.fetchone()
+                    return dict(row) if row else None
+
+    async def get_all_pit_scouts(self, guild_id: int, event_code: str = None) -> list:
+        """Get all pit scouting data, optionally filtered by event."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if event_code:
+                async with db.execute(
+                    "SELECT * FROM pit_scouting WHERE guild_id=? AND event_code=? ORDER BY team_number",
+                    (guild_id, event_code.upper()),
+                ) as cur:
+                    return [dict(r) for r in await cur.fetchall()]
+            async with db.execute(
+                "SELECT * FROM pit_scouting WHERE guild_id=? ORDER BY team_number",
+                (guild_id,),
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
     # ── Outreach ──────────────────────────────────────────────────────────────
 
     async def add_outreach(self, guild_id, event_name, hours, students, date, notes) -> int:
@@ -328,7 +406,7 @@ class Database:
             ) as cur:
                 return [dict(r) for r in await cur.fetchall()]
 
-    # ── Moderation ────────────────────────────────────────────────────────────
+    # ── Moderation ───────────────────────────────────���────────────────────────
 
     async def add_warning(self, guild_id, user_id, reason, moderator_id) -> int:
         async with aiosqlite.connect(self.path) as db:

@@ -27,7 +27,6 @@ class FTCBot(commands.Bot):
 
         cogs = [
             "cogs.admin",
-            "cogs.roles",
             "cogs.ftc_api",
             "cogs.tasks",
             "cogs.meetings",
@@ -67,7 +66,7 @@ class FTCBot(commands.Bot):
         team_num = config.get("team_number", "????") if config else "????"
 
         embed = discord.Embed(
-            title=f"👋 Welcome to Team {team_num}'s Server!",
+            title=f"Welcome to Team {team_num}'s Server!",
             description=(
                 f"Hey {member.mention}, glad you're here!\n\n"
                 "Here's how to get started:"
@@ -75,20 +74,21 @@ class FTCBot(commands.Bot):
             color=0x1565C0,
         )
         embed.add_field(
-            name="📋 Assign Your Role",
-            value="Use `/role join` to pick your subteam role\n"
-            "*(Programming, Build, Drive Team, etc.)*",
+            name="Useful Commands",
+            value="`/help` - all commands\n"
+            "`/ftc team <number>` - look up any FTC team\n"
+            "`/task list` - open tasks\n"
+            "`/meeting start` - log a meeting",
             inline=False,
         )
         embed.add_field(
-            name="📖 Useful Commands",
-            value="`/help` — all commands\n"
-            "`/ftc team <number>` — look up any FTC team\n"
-            "`/task list` — open tasks\n"
-            "`/meeting start` — log a meeting",
+            name="Track Your Work",
+            value="`/buildlog add` - log build work\n"
+            "`/codelog add` - log programming\n"
+            "`/attendance checkin` - check into meetings",
             inline=False,
         )
-        embed.set_footer(text="FTC Team Assistant Bot • /help for full command list")
+        embed.set_footer(text="FTC Team Assistant Bot - /help for full command list")
 
         try:
             await member.send(embed=embed)
