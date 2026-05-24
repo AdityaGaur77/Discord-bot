@@ -5,60 +5,54 @@ from discord.ext import commands
 
 CURRENT_SEASON_NAME = "INTO THE DEEP (2024-2025)"
 GAME_MANUAL_URL = "https://ftc-resources.firstinspires.org/file/ftc/game/manual"
-FTCSCOUT_URL = "https://ftcscout.org"
-FTC_EVENTS_URL = "https://ftc-events.firstinspires.org"
+FTCSCOUT_URL    = "https://ftcscout.org"
+FTC_EVENTS_URL  = "https://ftc-events.firstinspires.org"
 
-# Feature categories for organized help
 FEATURE_CATEGORIES = {
     "competition": {
         "name": "Competition Tools",
-        "description": "Live FTC data, match watching, and countdown tracking",
+        "description": "Live FTC data and event tracking",
         "color": 0xFB8C00,
         "commands": [
-            ("`/ftc myteam`", "Quick lookup of your configured team"),
-            ("`/ftc team <number>`", "Look up any FTC team"),
-            ("`/ftc event <code>`", "Event info and details"),
-            ("`/ftc rankings <code>`", "Current event standings"),
-            ("`/ftc scores <code>`", "Match results"),
-            ("`/ftc schedule <code>`", "Upcoming matches"),
-            ("`/ftc awards <code>`", "Event awards"),
-            ("`/ftc teams <code>`", "Teams attending event"),
-            ("`/watch team <num> <event>`", "See all matches for a team"),
-            ("`/watch myteam <event>`", "See your team's matches"),
-            ("`/watch next <event>`", "Your team's next match"),
-            ("`/countdown set <code>`", "Track days until competition"),
-            ("`/countdown view`", "View all countdowns"),
+            ("`/ftc myteam`",               "Quick lookup of your configured team"),
+            ("`/ftc team <number>`",         "Look up any FTC team"),
+            ("`/ftc teamevents <number>`",   "Events a team competed in this season"),
+            ("`/ftc teamawards <number>`",   "Awards won by a team"),
+            ("`/ftc event <code>`",          "Event info and details"),
+            ("`/ftc rankings <code>`",       "Current event standings"),
+            ("`/ftc scores <code>`",         "Recent match results"),
+            ("`/ftc schedule <code>`",       "Upcoming matches"),
+            ("`/ftc awards <code>`",         "Awards given at event"),
+            ("`/ftc teams <code>`",          "All teams attending an event"),
+            ("`/countdown set <code>`",      "Track days until competition"),
+            ("`/countdown view`",            "View all active countdowns"),
+            ("`/countdown next`",            "Show nearest upcoming event"),
         ],
     },
     "scouting": {
-        "name": "Match & Pit Scouting",
+        "name": "Match Scouting",
         "description": "Track and analyze team performance",
         "color": 0x43A047,
         "commands": [
-            ("`/scout add <team>`", "Submit a match scouting report"),
-            ("`/scout report <team>`", "View aggregated team data"),
-            ("`/scout compare <a> <b>`", "Compare two teams"),
-            ("`/scout export`", "Download all data as CSV"),
-            ("`/pit add <team> <event>`", "Submit pit scouting report"),
-            ("`/pit view <team>`", "View pit scouting data"),
-            ("`/pit list <event>`", "List all pit scouted teams"),
+            ("`/scout add <team>`",       "Submit a match scouting report"),
+            ("`/scout report <team>`",    "View aggregated team data"),
+            ("`/scout top`",              "Leaderboard of top-scouted teams"),
+            ("`/scout compare <a> <b>`",  "Compare two teams side by side"),
+            ("`/scout export`",           "Download all scouting data as CSV"),
         ],
     },
     "team-management": {
         "name": "Team Management",
-        "description": "Tasks, meetings, and attendance tracking",
+        "description": "Tasks and attendance tracking",
         "color": 0x1565C0,
         "commands": [
-            ("`/task add <title>`", "Create a task (with priority)"),
-            ("`/task list`", "View open tasks"),
-            ("`/task done <id>`", "Mark task complete"),
-            ("`/task assign`", "Reassign a task (leadership)"),
-            ("`/meeting start`", "Start a meeting"),
-            ("`/meeting end`", "End meeting with notes"),
-            ("`/meeting summary`", "View recent meetings"),
-            ("`/attendance checkin`", "Check in to meeting"),
-            ("`/attendance list`", "See who's checked in"),
-            ("`/attendance report`", "View attendance stats"),
+            ("`/task add <title>`",          "Create a task (with priority)"),
+            ("`/task list`",                 "View open tasks"),
+            ("`/task done <id>`",            "Mark task complete"),
+            ("`/task assign`",               "Reassign a task (leadership)"),
+            ("`/attendance checkin`",        "Check in to today's practice"),
+            ("`/attendance list`",           "See who's checked in today"),
+            ("`/attendance report`",         "View attendance stats (leadership)"),
         ],
     },
     "documentation": {
@@ -66,11 +60,11 @@ FEATURE_CATEGORIES = {
         "description": "Log work for Inspire/Notebook awards",
         "color": 0x8E24AA,
         "commands": [
-            ("`/buildlog add <entry>`", "Log build/mechanical work"),
-            ("`/codelog add <entry>`", "Log programming work"),
-            ("`/cadlog add <entry>`", "Log CAD/design work"),
-            ("`/notebook summary`", "View recent log entries"),
-            ("`/notebook remind`", "Post a logging reminder"),
+            ("`/buildlog add <entry>`",  "Log build/mechanical work"),
+            ("`/codelog add <entry>`",   "Log programming work"),
+            ("`/cadlog add <entry>`",    "Log CAD/design work"),
+            ("`/notebook summary`",      "View recent log entries"),
+            ("`/notebook remind`",       "Post a logging reminder"),
         ],
     },
     "outreach": {
@@ -78,8 +72,8 @@ FEATURE_CATEGORIES = {
         "description": "Track community events for Connect Award",
         "color": 0x00897B,
         "commands": [
-            ("`/outreach add <event>`", "Log an outreach event"),
-            ("`/outreach summary`", "View season statistics"),
+            ("`/outreach add <event>`",  "Log an outreach event"),
+            ("`/outreach summary`",      "View season statistics"),
         ],
     },
     "admin": {
@@ -87,10 +81,10 @@ FEATURE_CATEGORIES = {
         "description": "Configure the bot for your team",
         "color": 0x757575,
         "commands": [
-            ("`/setup team <number>`", "Set your team number"),
-            ("`/setup channels`", "Configure notification channels"),
-            ("`/config view`", "View current configuration"),
-            ("`/config timezone`", "Set server timezone"),
+            ("`/config team <number>`",   "Set your team number and season"),
+            ("`/config channels`",        "Set notification channels"),
+            ("`/config view`",            "View current configuration"),
+            ("`/config timezone`",        "Set server timezone"),
         ],
     },
     "moderation": {
@@ -98,10 +92,11 @@ FEATURE_CATEGORIES = {
         "description": "Keep your server safe",
         "color": 0xE53935,
         "commands": [
-            ("`/mod warn <member>`", "Warn a member"),
-            ("`/mod warnings <member>`", "View member warnings"),
-            ("`/mod word_add <word>`", "Add word to filter"),
-            ("`/mod word_list`", "View filtered words"),
+            ("`/mod warn <member>`",        "Warn a member"),
+            ("`/mod warnings <member>`",    "View member warnings"),
+            ("`/mod word_add <word>`",      "Add a custom word to the filter"),
+            ("`/mod word_remove <word>`",   "Remove a custom word from the filter"),
+            ("`/mod word_list`",            "View custom filtered words"),
         ],
     },
 }
@@ -113,9 +108,8 @@ class HelpCog(commands.Cog):
 
     @app_commands.command(name="features", description="Overview of all bot features")
     async def features(self, interaction: discord.Interaction):
-        """Show a high-level overview of all feature categories."""
         embed = discord.Embed(
-            title="FTC Team Assistant - Features",
+            title="FTC Team Assistant — Features",
             description=(
                 "A complete toolkit for FTC teams. "
                 "Use `/help <category>` for detailed commands.\n\n"
@@ -125,85 +119,83 @@ class HelpCog(commands.Cog):
         )
 
         for key, cat in FEATURE_CATEGORIES.items():
-            cmd_count = len(cat["commands"])
             embed.add_field(
-                name=f"{cat['name']}",
-                value=f"{cat['description']}\n`/help {key}` - {cmd_count} commands",
+                name=cat["name"],
+                value=f"{cat['description']}\n`/help {key}` — {len(cat['commands'])} commands",
                 inline=True,
             )
 
         embed.add_field(
             name="Quick Start",
             value=(
-                "1. `/setup team <number>` - Configure your team\n"
-                "2. `/setup channels` - Set notification channels\n"
-                "3. `/ftc myteam` - Test FTC data lookup"
+                "1. `/config team <number>` — Configure your team\n"
+                "2. `/config channels` — Set notification channels\n"
+                "3. `/ftc myteam` — Test FTC data lookup"
             ),
             inline=False,
         )
-
         embed.set_footer(text="Use /help <category> for detailed command info")
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Show commands for a feature category")
     @app_commands.describe(category="Feature category to show commands for")
     @app_commands.choices(category=[
-        app_commands.Choice(name="Competition Tools", value="competition"),
-        app_commands.Choice(name="Match & Pit Scouting", value="scouting"),
-        app_commands.Choice(name="Team Management", value="team-management"),
-        app_commands.Choice(name="Engineering Notebook", value="documentation"),
-        app_commands.Choice(name="Outreach Tracking", value="outreach"),
-        app_commands.Choice(name="Server Setup (Admin)", value="admin"),
-        app_commands.Choice(name="Moderation", value="moderation"),
+        app_commands.Choice(name="Competition Tools",       value="competition"),
+        app_commands.Choice(name="Match Scouting",         value="scouting"),
+        app_commands.Choice(name="Team Management",        value="team-management"),
+        app_commands.Choice(name="Engineering Notebook",   value="documentation"),
+        app_commands.Choice(name="Outreach Tracking",      value="outreach"),
+        app_commands.Choice(name="Server Setup (Admin)",   value="admin"),
+        app_commands.Choice(name="Moderation",             value="moderation"),
     ])
     async def help_cmd(self, interaction: discord.Interaction, category: str = None):
-        """Show detailed help for a category or overview if none specified."""
         if category is None:
-            # Show overview
             await self.features.callback(self, interaction)
             return
 
         if category not in FEATURE_CATEGORIES:
             await interaction.response.send_message(
-                f"Unknown category. Use `/features` to see all categories.",
-                ephemeral=True,
+                "Unknown category. Use `/features` to see all categories.", ephemeral=True
             )
             return
 
         cat = FEATURE_CATEGORIES[category]
         embed = discord.Embed(
-            title=f"{cat['name']}",
+            title=cat["name"],
             description=cat["description"],
             color=cat["color"],
         )
-
-        # Group commands into chunks to fit Discord embed limits
-        cmd_text = "\n".join(f"{cmd} - {desc}" for cmd, desc in cat["commands"])
+        cmd_text = "\n".join(f"{cmd} — {desc}" for cmd, desc in cat["commands"])
         embed.add_field(name="Commands", value=cmd_text, inline=False)
 
-        # Add category-specific tips
         if category == "competition":
             embed.add_field(
                 name="Tip",
-                value="Event codes are like `USCANC1`. Find them at ftc-events.firstinspires.org",
+                value="Event codes look like `USCANC1`. Find them at ftc-events.firstinspires.org",
                 inline=False,
             )
         elif category == "scouting":
             embed.add_field(
                 name="Tip",
-                value="Match scout multiple times per team for better averages. Pit scout for robot details. Export to CSV for spreadsheet analysis.",
+                value="Scout multiple matches per team for better averages. Use `/scout top` to quickly identify strong alliance partners.",
                 inline=False,
             )
         elif category == "team-management":
             embed.add_field(
                 name="Priority Levels",
-                value="`!!!` High | `!!` Medium | `!` Low",
+                value="`high` | `medium` | `low`",
                 inline=False,
             )
         elif category == "documentation":
             embed.add_field(
                 name="Tip",
                 value="Regular logging helps with Inspire Award submissions. Use `/notebook remind` to prompt your team.",
+                inline=False,
+            )
+        elif category == "moderation":
+            embed.add_field(
+                name="Note",
+                value="The bot has a built-in profanity filter that is always active. Custom words can be added on top of it.",
                 inline=False,
             )
 
@@ -230,28 +222,22 @@ class HelpCog(commands.Cog):
             title="FTC Team Assistant",
             description=(
                 "A Discord bot built for FIRST Tech Challenge teams.\n"
-                "Manage roles, tasks, meetings, scouting, outreach, "
-                "engineering notebook logs, and live FTC event data."
+                "Manage tasks, scouting, attendance, engineering notebook logs, "
+                "outreach tracking, and live FTC event data."
             ),
             color=0x1565C0,
         )
-        embed.add_field(name="Team", value=str(team_num))
-        embed.add_field(name="Season", value=CURRENT_SEASON_NAME)
-        embed.add_field(name="Servers", value=str(len(self.bot.guilds)))
-        embed.add_field(
-            name="Data Source",
-            value=f"[ftcscout.org]({FTCSCOUT_URL}) (public API)",
-        )
-        embed.add_field(name="discord.py", value=discord.__version__)
+        embed.add_field(name="Team",        value=str(team_num))
+        embed.add_field(name="Season",      value=CURRENT_SEASON_NAME)
+        embed.add_field(name="Servers",     value=str(len(self.bot.guilds)))
+        embed.add_field(name="Data Source", value=f"[ftcscout.org]({FTCSCOUT_URL}) (public API)")
+        embed.add_field(name="discord.py",  value=discord.__version__)
         embed.set_footer(text="Built for FTC teams | /features for all commands")
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="links", description="Useful FTC links and resources")
     async def links(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="FTC Resources",
-            color=0x1565C0,
-        )
+        embed = discord.Embed(title="FTC Resources", color=0x1565C0)
         embed.add_field(
             name="Official Documentation",
             value=(
@@ -286,21 +272,21 @@ class HelpCog(commands.Cog):
     @app_commands.command(name="season", description="Current FTC season info")
     async def season(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title=f"FTC Season - {CURRENT_SEASON_NAME}",
+            title=f"FTC Season — {CURRENT_SEASON_NAME}",
             color=0xFB8C00,
         )
         embed.add_field(
             name="Game",
-            value="INTO THE DEEP - collect samples and specimens, ascend the submersible",
+            value="INTO THE DEEP — collect samples and specimens, ascend the submersible",
             inline=False,
         )
         embed.add_field(
             name="Key Dates (2024-25)",
             value=(
-                "**Sep 7, 2024** - Kickoff\n"
-                "**Oct-Jan** - League meets / qualifiers\n"
-                "**Jan-Feb** - State/regional championships\n"
-                "**Apr 2025** - World Championship (Houston)"
+                "**Sep 7, 2024** — Kickoff\n"
+                "**Oct–Jan** — League meets / qualifiers\n"
+                "**Jan–Feb** — State/regional championships\n"
+                "**Apr 2025** — World Championship (Houston)"
             ),
             inline=False,
         )
@@ -314,11 +300,7 @@ class HelpCog(commands.Cog):
     @app_commands.command(name="poll", description="Create a quick yes/no poll")
     @app_commands.describe(question="The poll question")
     async def poll(self, interaction: discord.Interaction, question: str):
-        embed = discord.Embed(
-            title="Poll",
-            description=question,
-            color=0x1565C0,
-        )
+        embed = discord.Embed(title="Poll", description=question, color=0x1565C0)
         embed.set_footer(text=f"Asked by {interaction.user.display_name} | React to vote")
         await interaction.response.send_message(embed=embed)
         message = await interaction.original_response()

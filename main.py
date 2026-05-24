@@ -7,7 +7,7 @@ from services.database import Database
 
 load_dotenv()
 
-# ── Logging ──────────────────────────────────────────────────────────────────
+# ── Logging ───────────────────────────────────────────────────────────────────
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
 logging.basicConfig(level=logging.INFO)
 
@@ -29,7 +29,6 @@ class FTCBot(commands.Bot):
             "cogs.admin",
             "cogs.ftc_api",
             "cogs.tasks",
-            "cogs.meetings",
             "cogs.notebook",
             "cogs.scouting",
             "cogs.outreach",
@@ -61,8 +60,7 @@ class FTCBot(commands.Bot):
         )
 
     async def on_member_join(self, member: discord.Member):
-        """Send a rich welcome embed to new members."""
-        config = await self.db.get_config(member.guild.id)
+        config   = await self.db.get_config(member.guild.id)
         team_num = config.get("team_number", "????") if config else "????"
 
         embed = discord.Embed(
@@ -74,26 +72,34 @@ class FTCBot(commands.Bot):
             color=0x1565C0,
         )
         embed.add_field(
-            name="Useful Commands",
-            value="`/help` - all commands\n"
-            "`/ftc team <number>` - look up any FTC team\n"
-            "`/task list` - open tasks\n"
-            "`/meeting start` - log a meeting",
+            name="Competition",
+            value=(
+                "`/ftc myteam` — look up your team\n"
+                "`/ftc team <number>` — look up any FTC team\n"
+                "`/scout add` — submit a scouting report"
+            ),
             inline=False,
         )
         embed.add_field(
-            name="Track Your Work",
-            value="`/buildlog add` - log build work\n"
-            "`/codelog add` - log programming\n"
-            "`/attendance checkin` - check into meetings",
+            name="Team Tools",
+            value=(
+                "`/task list` — open tasks\n"
+                "`/buildlog add` — log build work\n"
+                "`/attendance checkin` — check into practice"
+            ),
             inline=False,
         )
-        embed.set_footer(text="FTC Team Assistant Bot - /help for full command list")
+        embed.add_field(
+            name="Help",
+            value="`/help` — full command list | `/features` — overview",
+            inline=False,
+        )
+        embed.set_footer(text="FTC Team Assistant Bot — /help for all commands")
 
         try:
             await member.send(embed=embed)
         except discord.Forbidden:
-            pass  # Member has DMs disabled
+            pass
 
 
 bot = FTCBot()
