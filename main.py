@@ -63,7 +63,21 @@ class FTCBot(commands.Bot):
         config   = await self.db.get_config(member.guild.id)
         team_num = config.get("team_number", "????") if config else "????"
 
-        embed = discord.Embed(
+        # Public greeting — posted in the server's system channel (Discord's designated welcome channel)
+        public_embed = discord.Embed(
+            title=f"Welcome to Team {team_num}'s Server!",
+            description=f"Hey {member.mention}, welcome aboard! 👋\nUse `/help` to see everything the bot can do.",
+            color=0x1565C0,
+        )
+        public_embed.set_thumbnail(url=member.display_avatar.url)
+        public_embed.set_footer(text=f"{member.guild.name} • FTC Team Assistant")
+
+        channel = member.guild.system_channel
+        if channel and channel.permissions_for(member.guild.me).send_messages:
+            await channel.send(embed=public_embed)
+
+        # Private DM with full getting-started guide
+        dm_embed = discord.Embed(
             title=f"Welcome to Team {team_num}'s Server!",
             description=(
                 f"Hey {member.mention}, glad you're here!\n\n"
@@ -71,16 +85,16 @@ class FTCBot(commands.Bot):
             ),
             color=0x1565C0,
         )
-        embed.add_field(
+        dm_embed.add_field(
             name="Competition",
             value=(
-                "`/ftc myteam` — look up your team\n"
                 "`/ftc team <number>` — look up any FTC team\n"
-                "`/scout add` — submit a scouting report"
+                "`/scout add` — submit a scouting report\n"
+                "`/countdown view` — upcoming competitions"
             ),
             inline=False,
         )
-        embed.add_field(
+        dm_embed.add_field(
             name="Team Tools",
             value=(
                 "`/task list` — open tasks\n"
@@ -89,17 +103,17 @@ class FTCBot(commands.Bot):
             ),
             inline=False,
         )
-        embed.add_field(
+        dm_embed.add_field(
             name="Help",
             value="`/help` — full command list | `/features` — overview",
             inline=False,
         )
-        embed.set_footer(text="FTC Team Assistant Bot — /help for all commands")
+        dm_embed.set_footer(text="FTC Team Assistant Bot — /help for all commands")
 
         try:
-            await member.send(embed=embed)
+            await member.send(embed=dm_embed)
         except discord.Forbidden:
-            pass
+            pass  # Member has DMs disabled — public greeting already sent above
 
 
 bot = FTCBot()

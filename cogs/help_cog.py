@@ -14,7 +14,6 @@ FEATURE_CATEGORIES = {
         "description": "Live FTC data and event tracking",
         "color": 0xFB8C00,
         "commands": [
-            ("`/ftc myteam`",               "Quick lookup of your configured team"),
             ("`/ftc team <number>`",         "Look up any FTC team"),
             ("`/ftc teamevents <number>`",   "Events a team competed in this season"),
             ("`/ftc teamawards <number>`",   "Awards won by a team"),
