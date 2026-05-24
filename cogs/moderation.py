@@ -40,7 +40,7 @@ def _find_violation(text: str, words: list[str]) -> str | None:
         if _build_pattern(word).search(lower):
             return word
     for word in words:
-        if word in lower:
+        if _build_pattern(word).search(lower):
             return word
     return None
 

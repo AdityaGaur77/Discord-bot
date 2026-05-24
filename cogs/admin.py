@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from services.permissions import is_admin, is_leadership
 import services.ftc_client as ftc
 
@@ -93,9 +94,18 @@ class AdminCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @config_group.command(name="timezone", description="Set the server timezone")
-    @app_commands.describe(tz="Timezone string, e.g. America/Los_Angeles, America/New_York")
+    @app_commands.describe(tz="IANA timezone, e.g. America/Los_Angeles, America/New_York, Europe/London")
     @is_admin()
     async def config_timezone(self, interaction: discord.Interaction, tz: str):
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, KeyError):
+            await interaction.response.send_message(
+                f"❌ Unknown timezone `{tz}`.\n"
+                "Use an IANA name like `America/Los_Angeles`, `America/New_York`, or `Europe/London`.",
+                ephemeral=True,
+            )
+            return
         await self.bot.db.set_config(interaction.guild_id, timezone=tz)
         await interaction.response.send_message(f"✅ Timezone set to `{tz}`")
 

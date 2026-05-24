@@ -54,11 +54,15 @@ class CountdownCog(commands.Cog):
         
         # Calculate days until event
         try:
-            event_dt = datetime.strptime(event_date[:10], "%Y-%m-%d")
+            event_dt  = datetime.strptime(event_date[:10], "%Y-%m-%d")
             days_until = (event_dt - datetime.now()).days
-            days_str = f"**{days_until}** days" if days_until > 0 else "**Today!**" if days_until == 0 else "Already passed"
-        except Exception:
-            days_str = "Date parsing error"
+            days_str   = f"**{days_until}** days" if days_until > 0 else ("**Today!**" if days_until == 0 else "Already passed")
+        except ValueError:
+            await interaction.followup.send(
+                f"Invalid date format `{event_date}`. Expected YYYY-MM-DD (e.g. 2025-03-15).",
+                ephemeral=True,
+            )
+            return
         
         embed = discord.Embed(
             title="Countdown Set",
@@ -89,7 +93,7 @@ class CountdownCog(commands.Cog):
         
         for c in countdowns:
             try:
-                event_dt = datetime.strptime(c["event_date"][:10], "%Y-%m-%d")
+                event_dt   = datetime.strptime(c["event_date"][:10], "%Y-%m-%d")
                 days_until = (event_dt - datetime.now()).days
                 if days_until > 0:
                     status = f"**{days_until}** days away"
@@ -97,8 +101,8 @@ class CountdownCog(commands.Cog):
                     status = "**TODAY!**"
                 else:
                     status = f"{abs(days_until)} days ago"
-            except Exception:
-                status = "Date error"
+            except ValueError:
+                status = f"Invalid date: `{c.get('event_date', '?')}`"
             
             embed.add_field(
                 name=f"{c['event_name']}",
@@ -145,7 +149,7 @@ class CountdownCog(commands.Cog):
                 days_until = (event_dt - datetime.now()).days
                 if days_until >= 0:
                     upcoming.append((days_until, c))
-            except Exception:
+            except ValueError:
                 pass
         
         if not upcoming:
