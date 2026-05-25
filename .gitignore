@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+discord.log
+
+# Database files
+*.db
+*.sqlite3
+
+# Virtual environments
+venv/
+
+# VS Code
+.vscode/
+
+# Node leftovers
+node_modules/
+package-lock.json
+
+# OS junk
+.DS_Store
+Thumbs.db

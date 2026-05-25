@@ -1,0 +1,114 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from services.permissions import is_admin, is_leadership
+import services.ftc_client as ftc
+
+
+class AdminCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    config_group = app_commands.Group(name="config", description="View or update bot configuration")
+
+    @config_group.command(name="team", description="Set your team number and season")
+    @app_commands.describe(
+        team_number="Your FTC team number",
+        season="Season year (e.g. 2024 for INTO THE DEEP)",
+    )
+    @is_admin()
+    async def config_team(
+        self,
+        interaction: discord.Interaction,
+        team_number: int,
+        season: int = ftc.CURRENT_SEASON,
+    ):
+        await self.bot.db.set_config(interaction.guild_id, team_number=team_number, season=season)
+        embed = discord.Embed(
+            title="✅ Team Configured",
+            description=f"Team **{team_number}** | Season **{season}**",
+            color=0x1565C0,
+        )
+        embed.set_footer(text="Run /config channels to set notification channels.")
+        await interaction.response.send_message(embed=embed)
+
+    @config_group.command(name="channels", description="Set notification channels for the bot")
+    @app_commands.describe(
+        tasks="Channel for task notifications",
+        scouting="Channel for scouting reports",
+        modlog="Channel for moderation logs",
+    )
+    @is_admin()
+    async def config_channels(
+        self,
+        interaction: discord.Interaction,
+        tasks: discord.TextChannel = None,
+        scouting: discord.TextChannel = None,
+        modlog: discord.TextChannel = None,
+    ):
+        kwargs = {}
+        if tasks:    kwargs["tasks_channel"]    = tasks.id
+        if scouting: kwargs["scouting_channel"] = scouting.id
+        if modlog:   kwargs["modlog_channel"]   = modlog.id
+
+        if not kwargs:
+            await interaction.response.send_message("❌ Provide at least one channel.", ephemeral=True)
+            return
+
+        await self.bot.db.set_config(interaction.guild_id, **kwargs)
+
+        lines = []
+        if tasks:    lines.append(f"Tasks → {tasks.mention}")
+        if scouting: lines.append(f"Scouting → {scouting.mention}")
+        if modlog:   lines.append(f"Mod log → {modlog.mention}")
+
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="✅ Channels Configured",
+                description="\n".join(lines),
+                color=0x1565C0,
+            )
+        )
+
+    @config_group.command(name="view", description="View current bot configuration")
+    @is_leadership()
+    async def config_view(self, interaction: discord.Interaction):
+        cfg = await self.bot.db.get_config(interaction.guild_id)
+        if not cfg:
+            await interaction.response.send_message(
+                "No config yet. Run `/config team <number>` first.", ephemeral=True
+            )
+            return
+
+        def ch(cid):
+            return f"<#{cid}>" if cid else "*(not set)*"
+
+        embed = discord.Embed(title="⚙️ Bot Configuration", color=0x1565C0)
+        embed.add_field(name="Team Number", value=str(cfg.get("team_number") or "*(not set)*"))
+        embed.add_field(name="Season",      value=str(cfg.get("season", ftc.CURRENT_SEASON)))
+        embed.add_field(name="Timezone",    value=cfg.get("timezone", "America/Los_Angeles"))
+        embed.add_field(name="Tasks Channel",    value=ch(cfg.get("tasks_channel")),    inline=False)
+        embed.add_field(name="Scouting Channel", value=ch(cfg.get("scouting_channel")), inline=False)
+        embed.add_field(name="Mod Log Channel",  value=ch(cfg.get("modlog_channel")),   inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @config_group.command(name="timezone", description="Set the server timezone")
+    @app_commands.describe(tz="IANA timezone, e.g. America/Los_Angeles, America/New_York, Europe/London")
+    @is_admin()
+    async def config_timezone(self, interaction: discord.Interaction, tz: str):
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, KeyError):
+            await interaction.response.send_message(
+                f"❌ Unknown timezone `{tz}`.\n"
+                "Use an IANA name like `America/Los_Angeles`, `America/New_York`, or `Europe/London`.",
+                ephemeral=True,
+            )
+            return
+        await self.bot.db.set_config(interaction.guild_id, timezone=tz)
+        await interaction.response.send_message(f"✅ Timezone set to `{tz}`")
+
+
+async def setup(bot):
+    await bot.add_cog(AdminCog(bot))
