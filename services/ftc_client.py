@@ -12,7 +12,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 BASE           = "https://api.ftcscout.org/rest/v1"
-CURRENT_SEASON = 2024  # INTO THE DEEP (2024-2025 season)
+CURRENT_SEASON = 2025  # DECODE (2025-2026 season)
 
 _session: Optional[aiohttp.ClientSession] = None
 

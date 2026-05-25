@@ -35,7 +35,6 @@ class FTCBot(commands.Bot):
             "cogs.ftc_api",
             "cogs.tasks",
             "cogs.notebook",
-            "cogs.scouting",
             "cogs.outreach",
             "cogs.moderation",
             "cogs.attendance",
