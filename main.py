@@ -1,9 +1,12 @@
+import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
 import os
 from dotenv import load_dotenv
+from aiohttp import web
+import aiohttp
 from services.database import Database
 import services.ftc_client as ftc
 
@@ -153,10 +156,47 @@ class FTCBot(commands.Bot):
             log.error("Error in on_member_join for %s: %s", member, e)
 
 
-token = os.getenv("DISCORD_TOKEN")
-if not token:
-    print("ERROR: DISCORD_TOKEN not set. Create a .env file with DISCORD_TOKEN=your_token_here")
-    raise SystemExit(1)
+async def health_handler(_request):
+    return web.Response(text="OK")
+
+
+async def run_web_server():
+    app = web.Application()
+    app.router.add_get("/", health_handler)
+    port = int(os.getenv("PORT", 8080))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    print(f"Health server listening on port {port}")
+
+
+async def self_ping_loop():
+    # Pings this service every 5 minutes so Render doesn't spin it down
+    render_url = os.getenv("RENDER_EXTERNAL_URL")
+    if not render_url:
+        return
+    await asyncio.sleep(60)
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                async with session.get(render_url, timeout=aiohttp.ClientTimeout(total=10)):
+                    pass
+            except Exception:
+                pass
+            await asyncio.sleep(300)
+
+
+async def main():
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        print("ERROR: DISCORD_TOKEN not set. Create a .env file with DISCORD_TOKEN=your_token_here")
+        raise SystemExit(1)
+
+    await run_web_server()
+    asyncio.create_task(self_ping_loop())
+    await bot.start(token)
+
 
 bot = FTCBot()
-bot.run(token, log_handler=handler, log_level=logging.INFO)
+asyncio.run(main())
